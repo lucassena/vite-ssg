@@ -46,6 +46,9 @@ Page failures reject `build()` after queued page tasks settle. They prevent the
 success message, PWA regeneration, and `onFinished` callback. Root-container
 attributes preserve their original quoting, entities, and boolean syntax.
 Preload and stylesheet links are deduplicated by their `href` and `rel` values.
+For stylesheets, only enabled links with no media condition or `media="all"`
+suppress a generated link. Conditional or disabled stylesheets remain intact
+and do not prevent the page from receiving unconditional CSS.
 
 Run the focused regressions with:
 

@@ -77,6 +77,49 @@ describe('build output safety', () => {
 })
 
 describe('preload links', () => {
+  it.each([
+    { media: 'print', disabled: false },
+    { media: 'screen', disabled: false },
+    { media: 'not all', disabled: false },
+    { media: '', disabled: true },
+    { media: 'all', disabled: true },
+  ])('preserves an unconditional stylesheet alongside $media / disabled=$disabled', ({ media, disabled }) => {
+    const { document } = new JSDOM('<head></head>').window
+    const existing = document.createElement('link')
+    existing.setAttribute('rel', 'stylesheet')
+    existing.setAttribute('href', '/style.css')
+    existing.setAttribute('media', media)
+    if (disabled)
+      existing.setAttribute('disabled', '')
+    document.head.appendChild(existing)
+
+    const manifest = { entry: ['/style.css'] }
+    renderPreloadLinks(document, new Set(['entry']), manifest)
+    renderPreloadLinks(document, new Set(['entry']), manifest)
+
+    const links = [...document.querySelectorAll('link[rel="stylesheet"]')]
+    expect(links.length).toBe(2)
+    expect(existing.parentElement === document.head).toBe(true)
+    const generated = links.find(link => link !== existing)!
+    expect(generated.getAttribute('href')).toBe('/style.css')
+    expect(generated.hasAttribute('media')).toBe(false)
+    expect(generated.hasAttribute('disabled')).toBe(false)
+  })
+
+  it('does not deduplicate against a stylesheet disabled through its DOM property', () => {
+    const { document } = new JSDOM('<head><link rel="stylesheet" href="/style.css"></head>').window
+    document.querySelector('link')!.disabled = true
+    renderPreloadLinks(document, new Set(['entry']), { entry: ['/style.css'] })
+    expect(document.querySelectorAll('link[rel="stylesheet"]').length).toBe(2)
+  })
+
+  it.each(['', 'all', ' ALL '])('deduplicates enabled unconditional CSS with media=%j', (media) => {
+    const { document } = new JSDOM('<head><link rel="stylesheet" href="/style.css"></head>').window
+    document.querySelector('link')!.setAttribute('media', media)
+    renderPreloadLinks(document, new Set(['entry']), { entry: ['/style.css'] })
+    expect(document.querySelectorAll('link[rel="stylesheet"]').length).toBe(1)
+  })
+
   it('deduplicates existing links by both href and relation without selector interpolation', () => {
     const file = `/assets/it's[quoted].js`
     const { document } = new JSDOM('<head></head>', { url: 'https://example.test' }).window
