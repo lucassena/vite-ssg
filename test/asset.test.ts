@@ -47,7 +47,7 @@ describe('single-page', () => {
     const { document } = new JSDOM(file).window
     expect(document.title).toBe('Hello World')
     expect(document.querySelectorAll('title')).toHaveLength(1)
-    expect(document.documentElement.lang).toBe('sv')
+    expect(document.documentElement.lang).toBe('en')
     expect(document.body.className).toBe('single-page')
     expect(document.querySelector('meta[name="description"]')?.getAttribute('content')).toBe('A single page example')
     expect(document.body.firstElementChild?.id).toBe('body-open')
