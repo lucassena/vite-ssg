@@ -31,6 +31,9 @@ upstream and Imovia integration checks. Keep the upstream MIT license intact.
 
 Page output paths are checked after the `htmlFileName` callback. Absolute paths,
 Windows drive paths, and relative paths that escape `build.outDir` are rejected.
+On Windows, colons in output filenames are rejected to block NTFS alternate
+data streams, including new streams on hard-linked files. POSIX filenames may
+still contain literal colons.
 Names with trailing dots or spaces are rejected to avoid Windows path aliases.
 Backslashes in callback results are treated as directory separators. Existing
 file or directory symlinks must resolve within the output directory; internal

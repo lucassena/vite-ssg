@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises'
 import { dirname, isAbsolute, relative, resolve, sep, win32 } from 'node:path'
+import process from 'node:process'
 
 function isContained(root: string, path: string) {
   const remainder = relative(root, path)
@@ -14,7 +15,8 @@ export async function resolveOutputFile(out: string, filename: string) {
 
   const hasWindowsAlias = normalized.split('/').some(part => part !== '.' && part !== '..' && /[. ]$/.test(part))
   if (!normalized || isAbsolute(normalized) || win32.isAbsolute(normalized)
-    || /^[a-z]:/i.test(normalized) || hasWindowsAlias || destination === root || !isContained(root, destination)) {
+    || /^[a-z]:/i.test(normalized) || (process.platform === 'win32' && normalized.includes(':'))
+    || hasWindowsAlias || destination === root || !isContained(root, destination)) {
     throw invalidPath()
   }
 

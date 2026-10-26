@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import process from 'node:process'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { resolveOutputFile } from '../src/node/output-path'
 
@@ -49,6 +50,46 @@ describe('output destinations', () => {
     ['pages/../home.html', 'home.html'],
   ])('preserves relative filename %j', async (filename, expected) => {
     expect(await resolveOutputFile(out, filename)).toBe(resolve(out, expected))
+  })
+
+  it.runIf(process.platform === 'win32').each([
+    'alias.html:payload',
+    'alias.html:payload:$DATA',
+    'alias.html::$DATA',
+    'nested/alias.html:payload',
+    'nested\\alias.html:payload',
+    'nested:payload/page.html',
+  ])('rejects Windows stream filename %j', async (filename) => {
+    await expect(resolveOutputFile(out, filename)).rejects.toThrow('output directory')
+  })
+
+  it.runIf(process.platform === 'win32').each(['payload', 'payload:$DATA'])(
+    'rejects a new NTFS stream %j on an externally hard-linked file',
+    async (stream) => {
+      const target = join(sandbox, 'outside.html')
+      const alias = join(out, 'alias.html')
+      await fs.writeFile(target, 'preserved')
+      await fs.link(target, alias)
+      expect((await fs.stat(target)).nlink).toBeGreaterThan(1)
+
+      // Establish native stream support and that both names address the same file.
+      await fs.writeFile(`${alias}:control`, 'stream control')
+      expect(await fs.readFile(`${target}:control`, 'utf8')).toBe('stream control')
+      await expect(fs.stat(`${target}:${stream}`)).rejects.toMatchObject({ code: 'ENOENT' })
+
+      await expect(resolveOutputFile(out, `alias.html:${stream}`)).rejects.toThrow('output directory')
+      expect(await fs.readFile(target, 'utf8')).toBe('preserved')
+      await expect(fs.stat(`${target}:${stream}`)).rejects.toMatchObject({ code: 'ENOENT' })
+    },
+  )
+
+  it.runIf(process.platform !== 'win32')('preserves literal colon filenames on POSIX', async () => {
+    await fs.mkdir(join(out, 'nested'))
+    const filename = 'nested/page.html:payload'
+    const destination = await resolveOutputFile(out, filename)
+    expect(destination).toBe(join(out, filename))
+    await fs.writeFile(destination, 'literal filename')
+    expect(await fs.readFile(join(out, filename), 'utf8')).toBe('literal filename')
   })
 
   it('rejects an existing directory alias before creating directories outside output', async () => {
