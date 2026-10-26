@@ -17,6 +17,7 @@ import PQueue from 'p-queue'
 import { mergeConfig, resolveConfig, build as viteBuild } from 'vite'
 import { serializeState } from '../utils/state'
 import { getBeasties } from './critical'
+import { resolveOutputFile } from './output-path'
 import { renderPreloadLinks } from './preload-links'
 import { buildLog, getSize, prepareHtmlFileName, routesToPaths } from './utils'
 
@@ -153,69 +154,71 @@ export async function build(ssgOptions: Partial<ViteSSGOptions> = {}, viteConfig
 
   const queue = new PQueue({ concurrency })
 
-  for (const route of routesPaths) {
-    queue.add(async () => {
-      try {
-        const appCtx = await createApp(route) as ViteSSGContext<true>
-        const { app, router, head, initialState, triggerOnSSRAppRendered, transformState = serializeState } = appCtx
+  const pageTasks = routesPaths.map(route => queue.add(async () => {
+    try {
+      const appCtx = await createApp(route) as ViteSSGContext<true>
+      const { app, router, head, initialState, triggerOnSSRAppRendered, transformState = serializeState } = appCtx
 
-        if (router) {
-          await router.push(route)
-          await router.isReady()
-        }
-
-        const transformedIndexHTML = (await onBeforePageRender?.(route, indexHTML, appCtx)) || indexHTML
-
-        const ctx: SSRContext = {}
-        const appHTML = await renderToString(app, ctx)
-        await triggerOnSSRAppRendered?.(route, appHTML, appCtx)
-        // need to resolve assets so render content first
-        const renderedHTML = await renderHTML({
-          rootContainerId,
-          indexHTML: transformedIndexHTML,
-          appHTML,
-          initialState: transformState(initialState),
-        })
-
-        // create jsdom from renderedHTML
-        const jsdom = new JSDOM(renderedHTML)
-
-        // render current page's preloadLinks
-        renderPreloadLinks(jsdom.window.document, ctx.modules || new Set<string>(), ssrManifest)
-
-        // render head using Unhead's SSR renderer
-        const template = jsdom.serialize()
-        const html = head ? transformHtmlTemplate(head as ReturnType<typeof createHead>, template) : template
-        let transformed = (await onPageRendered?.(route, html, appCtx)) || html
-        if (beasties)
-          transformed = await beasties.process(transformed)
-
-        const formatted = await formatHtml(transformed, formatting)
-
-        const relativeRouteFile = `${(route.endsWith('/')
-          ? `${route}index`
-          : route).replace(/^\//g, '')}.html`
-
-        const filename = await prepareHtmlFileName(
-          dirStyle === 'nested'
-            ? join(route.replace(/^\//g, ''), 'index.html')
-            : relativeRouteFile,
-          htmlFileName,
-        )
-
-        await fs.mkdir(resolve(out, dirname(filename)), { recursive: true })
-        await fs.writeFile(resolve(out, filename), formatted, 'utf-8')
-        config.logger.info(
-          `${dim(`${outDir}/`)}${cyan(filename.padEnd(15, ' '))}  ${dim(getSize(formatted))}`,
-        )
+      if (router) {
+        await router.push(route)
+        await router.isReady()
       }
-      catch (err: any) {
-        throw new Error(`${gray('[vite-ssg]')} ${red(`Error on page: ${cyan(route)}`)}\n${err.stack}`)
-      }
-    })
-  }
 
-  await queue.start().onIdle()
+      const transformedIndexHTML = (await onBeforePageRender?.(route, indexHTML, appCtx)) || indexHTML
+
+      const ctx: SSRContext = {}
+      const appHTML = await renderToString(app, ctx)
+      await triggerOnSSRAppRendered?.(route, appHTML, appCtx)
+      // need to resolve assets so render content first
+      const renderedHTML = await renderHTML({
+        rootContainerId,
+        indexHTML: transformedIndexHTML,
+        appHTML,
+        initialState: transformState(initialState),
+      })
+
+      // create jsdom from renderedHTML
+      const jsdom = new JSDOM(renderedHTML)
+
+      // render current page's preloadLinks
+      renderPreloadLinks(jsdom.window.document, ctx.modules || new Set<string>(), ssrManifest)
+
+      // render head using Unhead's SSR renderer
+      const template = jsdom.serialize()
+      const html = head ? transformHtmlTemplate(head as ReturnType<typeof createHead>, template) : template
+      let transformed = (await onPageRendered?.(route, html, appCtx)) || html
+      if (beasties)
+        transformed = await beasties.process(transformed)
+
+      const formatted = await formatHtml(transformed, formatting)
+
+      const relativeRouteFile = `${(route.endsWith('/')
+        ? `${route}index`
+        : route).replace(/^\//g, '')}.html`
+
+      const filename = await prepareHtmlFileName(
+        dirStyle === 'nested'
+          ? join(route.replace(/^\//g, ''), 'index.html')
+          : relativeRouteFile,
+        htmlFileName,
+      )
+
+      const destination = await resolveOutputFile(out, filename)
+      await fs.mkdir(dirname(destination), { recursive: true })
+      await fs.writeFile(destination, formatted, 'utf-8')
+      config.logger.info(
+        `${dim(`${outDir}/`)}${cyan(filename.padEnd(15, ' '))}  ${dim(getSize(formatted))}`,
+      )
+    }
+    catch (err: any) {
+      throw new Error(`${gray('[vite-ssg]')} ${red(`Error on page: ${cyan(route)}`)}\n${err.stack}`)
+    }
+  }))
+
+  const results = await Promise.allSettled(pageTasks)
+  const failure = results.find(result => result.status === 'rejected')
+  if (failure?.status === 'rejected')
+    throw failure.reason
 
   await fs.rm(ssgOutTempFolder, { recursive: true, force: true })
 
@@ -292,7 +295,7 @@ async function renderHTML({
         && node.attributes.length > 0
         && node.attributes.some(attr => attr.name.value === 'id' && attr.value?.value === rootContainerId)
       ) {
-        const attributesStringified = [...node.attributes.map(({ name: { value: name }, value }) => `${name}="${value!.value}"`)].join(' ')
+        const attributesStringified = node.attributes.map(attribute => indexHTML.slice(attribute.start, attribute.end)).join(' ')
         const indexHTMLBefore = indexHTML.slice(0, node.start)
         const indexHTMLAfter = indexHTML.slice(node.end)
         renderedOutput = `${indexHTMLBefore}<${node.name} ${attributesStringified} data-server-rendered="true">${appHTML}</${node.name}>${stateScript}${indexHTMLAfter}`

@@ -26,3 +26,28 @@ immutable commit SHA, without running build lifecycle scripts at install time.
 The distribution manifest records the source commit in `imoviaSourceCommit`.
 Do not edit generated bundles by hand or update the pinned SHA without rerunning
 upstream and Imovia integration checks. Keep the upstream MIT license intact.
+
+## Output safety and rendering fixes
+
+Page output paths are checked after the `htmlFileName` callback. Absolute paths,
+Windows drive paths, and relative paths that escape `build.outDir` are rejected.
+Names with trailing dots or spaces are rejected to avoid Windows path aliases.
+Backslashes in callback results are treated as directory separators. Existing
+file or directory symlinks must resolve within the output directory; internal
+symlinks and a symlinked output root remain supported. Dangling symlinks and
+existing hard-linked files fail the build. Keep the build workspace under
+trusted ownership: this check does not protect against another process
+replacing symlinks during a build.
+
+Page failures reject `build()` after queued page tasks settle. They prevent the
+success message, PWA regeneration, and `onFinished` callback. Root-container
+attributes preserve their original quoting, entities, and boolean syntax.
+Preload and stylesheet links are deduplicated by their `href` and `rel` values.
+
+Run the focused regressions with:
+
+```sh
+pnpm exec vitest run test/build-safety.test.ts test/output-path.test.ts
+```
+
+Run the complete validation commands above before publishing a new distribution.
