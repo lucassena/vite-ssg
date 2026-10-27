@@ -1,20 +1,44 @@
-# Vite SSG
+# Vite SSG — maintained fork
 
 Static-site generation for Vue 3 on Vite.
 
-[![NPM version](https://img.shields.io/npm/v/vite-ssg?color=a1b858)](https://www.npmjs.com/package/vite-ssg)
+Maintained in [lucassena/vite-ssg](https://github.com/lucassena/vite-ssg), based on
+[upstream Vite SSG](https://github.com/antfu-collective/vite-ssg) v28.3.0.
+This fork provides Unhead 3 SSR compatibility, output-path validation,
+rendering fixes, and updated critical CSS integration for Vue applications.
+See [FORK.md](./FORK.md) for behavior changes, compatibility, and distribution
+policy. Report fork issues and submit pull requests to this repository.
+
+The `vite-ssg` package on npm is the upstream package. Installing it by name
+does not install this fork. Fork prereleases use the `-fork.N` version suffix;
+the package name and import paths remain `vite-ssg`.
 
 > ℹ️ **ESM-only from `v27.0.0` (CJS generation format also dropped).**
->
-> ℹ️ **Vite 2 is supported from `v0.2.x`, Vite 1's support is discontinued.**
 
 ## Install
 
-> **This library requires Node.js version >= 14**
+Use a supported Node.js LTS release that satisfies the chosen distribution's
+`engines` and peer dependencies. The current source requires Node.js 20.19.0
+or newer, uses Unhead 3, and supports optional Beasties `^0.5.5`.
+Source changes and prebuilt distributions are separate: a source version does
+not imply that its prebuilt distribution is already available. Check the
+distribution manifest before installing; older distributions can have different
+dependency requirements.
 
-<pre>
-<b>npm i -D vite-ssg</b> <em>vue-router @unhead/vue</em>
-</pre>
+Choose a reviewed commit from the prebuilt distribution branch, which contains
+`dist`, resolved dependency ranges, and a `sourceCommit` identifying its sources.
+Replace `DISTRIBUTION_COMMIT_SHA` below with its full immutable commit SHA:
+
+```sh
+pnpm add -D 'vite-ssg@https://codeload.github.com/lucassena/vite-ssg/tar.gz/DISTRIBUTION_COMMIT_SHA'
+pnpm add vue-router @unhead/vue@^3
+```
+
+Select a Vue Router version supported by the distribution's peer range.
+Pin the distribution commit in your manifest and commit the generated lockfile.
+The source `main` branch requires a local build; use a prebuilt distribution
+for application installs. See [CONTRIBUTING.md](./CONTRIBUTING.md) to build the
+sources. No install-time build scripts are needed for the prebuilt distribution.
 
 ```diff
 // package.json
@@ -61,7 +85,8 @@ else {
 ```
 ### Single Page SSG
 
-For SSG of an index page only (i.e. without `vue-router`); import `vite-ssg/single-page` instead, and only install `@unhead/vue` (`npm i -D vite-ssg @unhead/vue`).
+For SSG of an index page only (i.e. without `vue-router`), install the fork as
+described above but omit Vue Router, then import `vite-ssg/single-page`.
 
 ```ts
 // src/main.ts
@@ -120,7 +145,7 @@ Vite SSG has built-in support for generating [Critical CSS](https://web.dev/extr
 Install it with:
 
 ```bash
-npm i -D beasties@^0.5.5
+pnpm add -D beasties@^0.5.5
 ```
 
 This fork supports Beasties `^0.5.5` and requires Node.js 20.19.0 or newer.
@@ -443,8 +468,14 @@ See [Vitesse](https://github.com/antfu/vitesse).
 
 ## Contribution
 
-Please refer to https://github.com/antfu/contribute.
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for the fork's development and
+validation workflow. Open [issues](https://github.com/lucassena/vite-ssg/issues)
+and [pull requests](https://github.com/lucassena/vite-ssg/pulls) in this fork.
+Keep contributions generic so they can serve different Vue applications.
 
 ## License
 
 MIT License © 2020-PRESENT [Anthony Fu](https://github.com/antfu)
+
+Fork maintenance does not transfer ownership of the upstream npm package.
+Original author credits, contributor history, and the MIT license are retained.
