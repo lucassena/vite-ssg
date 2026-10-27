@@ -20,8 +20,11 @@ the package name and import paths remain `vite-ssg`.
 ## Install
 
 Use a supported Node.js LTS release that satisfies the chosen distribution's
-`engines` and peer dependencies. The current source requires Node.js 20.19.0
-or newer, uses Unhead 3, and supports optional Beasties `^0.5.5`.
+`engines` and peer dependencies. The source supports Node.js 20.19+ on the
+20.x line or 22.12+ on later lines, uses Unhead 3, and supports optional
+Beasties `^0.5.5`.
+Vite peers start at 7.3.1 and include Vite 8; engines and peers are preserved
+from source to runtime package.
 Source changes and prebuilt distributions are separate: a source version does
 not imply that its prebuilt distribution is already available. Check the
 distribution manifest before installing; older distributions can have different
@@ -152,7 +155,8 @@ Install it with:
 pnpm add -D beasties@^0.5.5
 ```
 
-This fork supports Beasties `^0.5.5` and requires Node.js 20.19.0 or newer.
+This fork supports Beasties `^0.5.5`. Use Node.js 20.19+ on the 20.x line,
+or 22.12+ on later lines, matching the package engines.
 Critical CSS generation will automatically be enabled for you.
 
 To configure `beasties`, pass [its options](https://github.com/danielroe/beasties#usage) into `ssgOptions.beastiesOptions` in `vite.config.ts`:

@@ -85,9 +85,10 @@ also ignores leftovers from interrupted runs.
 ## Critical CSS compatibility
 
 Since `28.3.0-fork.2`, the fork requires Beasties `^0.5.5` when critical CSS
-generation is enabled, with a package Node.js minimum of 20.19.0. Beasties remains an optional peer; consumers that use it must update
-their own dependency alongside the fork. The supported peer range starts at
-the tested 0.5.5 baseline. In particular, 0.3.5 can select another page's CSS
+generation is enabled. The package supports Node 20.19+ on the 20.x line,
+or Node 22.12+ on later lines. Beasties remains an optional peer; consumers
+that use it must update their own dependency alongside the fork. The supported
+peer range starts at the tested 0.5.5 baseline. In particular, 0.3.5 can select another page's CSS
 when pages share a processor concurrently; its keyframe handling also fails
 the regression below. Intermediate lines are not advertised as supported.
 
@@ -121,8 +122,9 @@ The CI compatibility matrix builds the package, checks types, builds all example
 Vite 7.3.7 and 8.3.5. Regression tests inspect configuration before Vite can
 normalize deprecated aliases, check custom options survive, and verify generated
 HTML. These exact versions are tested baselines, not the complete peer range.
-Older Vite peer ranges remain declared; this matrix does not establish coverage
-for every older major or for future Vite majors.
+Source and runtime peers both start at Vite 7.3.1 and include Vite 8.
+Earlier Vite majors are no longer advertised. The matrix does not establish
+coverage for every patch or for future Vite majors.
 
 The matrix first verifies the committed lockfile, then changes the Vite catalog
 only inside each disposable CI job and resolves that target's dependency graph.
@@ -134,29 +136,37 @@ new runtime dependency is required.
 
 The source version and runtime package version must match. The next version is
 `28.3.0-fork.4`; previously distributed versions and SHAs are never overwritten.
-The release packager keeps the tested runtime peer policy of prior prebuilt
-packages (Vite 7.3.1/8, Vue 3.5.18+, supported stable Router 4/5) rather than
-advertising every historical source peer range. It adds no runtime dependencies.
+The source package.json is the single source of truth for engines and peers.
+The packager preserves those fields instead of substituting a second policy.
+It adds no runtime dependencies.
 
 1. Update the source version in a reviewed PR, run CI, and merge to main.
 2. Run the manual Release workflow on main. It calls the complete CI workflow,
    including the real-build matrix for Vite 7.3.7 and 8.3.5. Failed checks prevent
    the packaging job from creating a release.
-3. The workflow builds with Node 24 and frozen pnpm dependencies, then runs
-   `pnpm run release:pack`. This Linux/GNU tar command uses `pnpm pack` as an
-   intermediate, resolves catalogs, removes lifecycle scripts and devDependencies,
-   preserves the executable and required documentation, and records sourceCommit.
-   Archive file order, owner IDs, timestamps and gzip headers are normalized.
-4. Inspect the draft prerelease and its uploaded runtime .tgz, SHA256SUMS, and
-   release-manifest.json. The manifest contains version, source SHA, artifact name,
-   and SHA-256 digest. Verify the package and CI results before publication.
+3. The read-only CI artifact job builds with exact Node 24.22.1 and frozen pnpm
+   dependencies, then runs release:pack on a clean checkout. This Linux/GNU tar
+   command uses pnpm pack as an intermediate, resolves catalogs, removes scripts
+   and devDependencies, preserves executables/docs, and records sourceCommit.
+   It installs that same .tgz in two temporary projects outside the workspace,
+   with Vite 7.3.7 and 8.3.5, strict peers/engines and install scripts disabled.
+   Each project builds two routes with rendered head metadata, serialized state,
+   hydration markers and actual Beasties critical CSS. No workspace link is used.
+4. The CI job uploads only the tested runtime artifact, SHA256SUMS and
+   release-manifest.json. A separate publisher job downloads those exact bytes,
+   verifies the transfer checksum and source/cleanliness, and creates a draft.
+   Only the publisher has contents:write; it never installs dependencies, builds
+   source or executes code from the package. All actions are pinned by commit.
+   Inspect the draft and its uploaded files before publication.
 5. Publish the draft. With repository immutability enabled, the tag and uploaded
    assets become immutable. Only then update consumers to the asset download URL,
    regenerate their lockfiles deliberately, and rerun integration checks.
 
 The workflow has no npm publication step, no tag-push trigger and no automatic
-preview publication. It refuses to overwrite an existing release, including a
-draft: inspect an existing draft before retrying. The manual workflow must first
+preview publication. It refuses to reuse any existing tag or release, including a draft, and fails
+closed if the remote tag lookup fails. The inherited release/bumpp command and
+dependency were removed; version changes are reviewed before any tag is created.
+Inspect an existing draft before retrying. The manual workflow must first
 be merged to the default branch before GitHub allows dispatching it.
 
 To build a local preview on Linux after the normal validation commands:
@@ -169,5 +179,13 @@ pnpm run release:pack
 `pnpm pack` alone produces the source-development manifest; release:pack is the
 canonical runtime packaging step. Source files, runtime dependency policy, and
 package-version selection are committed together. The hosted workflow uses a
-fresh checkout of its exact main commit; local previews may contain uncommitted
-changes and must not be published as validated releases.
+fresh checkout of its exact main commit. Packaging rejects tracked modifications
+and untracked files by default. Explicit local previews can use
+pnpm run release:pack --allow-dirty; their manifest carries dirty:true and
+the runtime package carries sourceDirty:true. The installation smoke and
+publisher reject dirty artifacts. Such previews must never be published.
+
+The release manifest records the exact Node, zlib and pnpm versions. Normalized
+archive metadata and repeated byte comparisons establish reproducibility within
+the same toolchain/environment, not across arbitrary zlib or platform versions.
+The immutable uploaded asset remains the authoritative downloadable artifact.

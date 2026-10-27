@@ -9,11 +9,17 @@ import { fileURLToPath } from 'node:url'
 import { gzipSync } from 'node:zlib'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const output = resolve(process.argv[2] || join(root, 'release-output'))
+const args = process.argv.slice(2)
+const allowDirty = args.includes('--allow-dirty')
+const paths = args.filter(value => value !== '--allow-dirty')
+assert.ok(paths.length <= 1 && paths.every(value => !value.startsWith('--')), 'Invalid package arguments')
+const output = resolve(paths[0] || join(root, 'release-output'))
 const source = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
 assert.match(source.version, /^\d+\.\d+\.\d+-fork\.\d+$/)
 assert.equal(execFileSync('git', ['rev-parse', '--show-toplevel'], { cwd: root, encoding: 'utf8' }).trim(), root, 'Package from a Git checkout of this repository')
 const sourceCommit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim()
+const dirty = execFileSync('git', ['status', '--porcelain', '--untracked-files=normal'], { cwd: root, encoding: 'utf8' }).trim().length > 0
+assert.ok(!dirty || allowDirty, 'Refusing to package a dirty checkout; --allow-dirty marks local previews only')
 const timestamp = execFileSync('git', ['show', '-s', '--format=%ct', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim()
 assert.ok(existsSync(join(root, 'dist/node.mjs')), 'Build the package before packaging a release')
 const temporary = mkdtempSync(join(tmpdir(), 'vite-ssg-release-'))
@@ -51,17 +57,11 @@ try {
     'files',
     'peerDependenciesMeta',
     'dependencies',
+    'engines',
+    'peerDependencies',
   ].map(key => [key, packed[key]]))
   manifest.sourceCommit = sourceCommit
-  // Preserve the tested runtime contract of the previous prebuilt distributions.
-  manifest.engines = { node: '^20.19.0 || >=22.12.0' }
-  manifest.peerDependencies = {
-    'beasties': '^0.5.5',
-    'prettier': '^3.3.0',
-    'vite': '^7.3.1 || ^8.0.0',
-    'vue': '>=3.5.18',
-    'vue-router': '^4.0.1 || ^5.0.0',
-  }
+  manifest.sourceDirty = dirty
   const serialized = `${JSON.stringify(manifest, null, 2)}\n`
   assert.ok(!/catalog:|workspace:/.test(serialized), 'All catalog ranges must be resolved')
   writeFileSync(manifestPath, serialized)
@@ -93,6 +93,8 @@ try {
     sourceCommit,
     artifact,
     sha256,
+    dirty,
+    toolchain: { node: process.versions.node, zlib: process.versions.zlib, pnpm: execFileSync('pnpm', ['--version'], { cwd: root, encoding: 'utf8' }).trim() },
   }, null, 2)}\n`)
   console.log(JSON.stringify({ version: manifest.version, sourceCommit, artifact, sha256 }))
 }

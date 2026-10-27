@@ -27,14 +27,21 @@ the examples and generated HTML as well as the package's types and lint rules.
 
 ## Distribution and credits
 
-Source pull requests target `main`. Keep source and runtime versions identical.
+Source pull requests target `main`. Keep source/runtime versions identical and
+declare engines/peers in package.json; the packager must preserve that contract.
+Update versions in a reviewed PR; the release/bumpp tag-pushing command is removed.
 After review and merge, run the manual GitHub Release workflow on main. It gates
 packaging on the complete CI matrix and creates a draft prerelease with an
 uploaded prebuilt runtime .tgz, SHA256SUMS and release-manifest.json. Inspect the
 checks and artifacts, then publish with repository release immutability enabled.
 No npm or automatic preview publication is used.
 
-Use `pnpm run release:pack` on Linux/GNU tar for local packaging validation.
+Use `pnpm run release:pack` on Linux/GNU tar from a clean checkout.
+Explicit dirty previews use `pnpm run release:pack --allow-dirty` and cannot
+be published. The CI installs the tarball outside the workspace with both tested
+Vite versions before a separate write-permission job can create the draft.
+Release packaging uses exact Node 24.22.1; provenance records Node/zlib/pnpm.
+Byte-identical reproduction is scoped to the same toolchain/environment.
 The runtime includes resolved catalogs, sourceCommit, README.md, FORK.md,
 CONTRIBUTING.md, LICENSE, bin and generated dist, without development dependencies
 or lifecycle scripts. Existing distribution-branch SHAs remain historical pins;

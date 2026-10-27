@@ -21,34 +21,45 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - name: Download the tested package from this run
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          persist-credentials: false
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm build
-      - run: git diff --exit-code
-      - run: pnpm run release:pack
-      - name: Verify checksum and source
+          name: release-runtime
+          path: release-output
+      - name: Verify transferred artifact and provenance
         run: |
           cd release-output
           sha256sum --check SHA256SUMS
-          node --input-type=module -e "import { readFileSync } from 'node:fs'; const m=JSON.parse(readFileSync('release-manifest.json')); if(m.sourceCommit !== process.env.GITHUB_SHA) throw new Error('Source SHA mismatch')"
-      - name: Create draft prerelease with uploaded package
+          jq -e '.sourceCommit == env.GITHUB_SHA and .dirty == false' release-manifest.json
+          version=$(jq -er '.version' release-manifest.json)
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+-fork\.[0-9]+$ ]]
+          artifact=$(jq -er '.artifact' release-manifest.json)
+          [[ "$artifact" == "vite-ssg-$version.tgz" ]]
+          actual=$(sha256sum -- "$artifact")
+          expected=$(jq -er '.sha256' release-manifest.json)
+          [[ "${actual%% *}" == "$expected" ]]
+      - name: Create draft prerelease
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          version=$(node -p "require('./package.json').version")
+          version=$(jq -er '.version' release-output/release-manifest.json)
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+-fork\.[0-9]+$ ]]
           tag="v$version"
+          set +e
+          git ls-remote --exit-code --tags "https://github.com/$GH_REPO.git" "refs/tags/$tag"
+          tag_status=$?
+          set -e
+          case "$tag_status" in
+            0) echo "::error::Tag already exists; refusing to reuse it"; exit 1 ;;
+            2) ;;
+            *) echo "::error::Could not verify remote tags"; exit "$tag_status" ;;
+          esac
           if gh release view "$tag" >/dev/null 2>&1; then
-            echo "::error::Release already exists; never replace published assets"
+            echo "::error::Release already exists; refusing to replace it"
             exit 1
           fi
           gh release create "$tag" --target "$GITHUB_SHA" --draft --prerelease \
             --title "vite-ssg $version" \
-            --notes "Prebuilt maintained fork. See release-manifest.json for source commit and SHA256SUMS for package integrity. Install the uploaded .tgz asset; automatic source archives are not the runtime package." \
+            --notes "Prebuilt maintained fork. See release-manifest.json for source commit, toolchain and SHA256SUMS for integrity. Install the uploaded .tgz asset; automatic source archives are not the runtime package." \
             release-output/*.tgz release-output/SHA256SUMS release-output/release-manifest.json
