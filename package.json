@@ -1,7 +1,7 @@
 {
   "name": "vite-ssg",
   "type": "module",
-  "version": "28.3.0-fork.1",
+  "version": "28.3.0-fork.2",
   "description": "Server-side generation for Vite",
   "author": "Anthony Fu <anthonyfu117@hotmail.com>",
   "license": "MIT",
@@ -53,18 +53,19 @@
     "html5parser": "^2.0.2",
     "jsdom": "^28.0.0"
   },
-  "sourceCommit": "4db3439e0c2012f48f54198924bad7fb6c5ce2e5",
+  "sourceCommit": "91a6b5a56bb1c9bdf540b41f9b4108a769002c75",
   "files": [
     "*.d.ts",
+    "CONTRIBUTING.md",
+    "FORK.md",
     "bin",
-    "dist",
-    "FORK.md"
+    "dist"
   ],
   "engines": {
     "node": "^20.19.0 || >=22.12.0"
   },
   "peerDependencies": {
-    "beasties": "^0.3.5",
+    "beasties": "^0.5.5",
     "prettier": "^3.3.0",
     "vite": "^7.3.1 || ^8.0.0",
     "vue": ">=3.5.18",

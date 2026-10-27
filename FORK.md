@@ -83,3 +83,30 @@ Run the complete validation commands above before publishing a new distribution.
 Build fixtures use `.vite-ssg-regression-*` directories under the repository so
 they can resolve workspace dependencies. Tests remove them in `finally`; Git
 also ignores leftovers from interrupted runs.
+
+## Critical CSS compatibility
+
+The next fork prerelease, `28.3.0-fork.2`, requires Beasties `^0.5.5` when
+critical CSS generation is enabled and raises the package Node.js minimum to
+20.19.0. Beasties remains an optional peer; consumers that use it must update
+their own dependency alongside the fork. The supported peer range starts at
+the tested 0.5.5 baseline. In particular, 0.3.5 can select another page's CSS
+when pages share a processor concurrently; its keyframe handling also fails
+the regression below. Intermediate lines are not advertised as supported.
+
+The integration keeps the default class and asynchronous `process(html)` API,
+including the existing font-inlining and preload options. It does not enable
+the new compiler/runtime API or change CSP/preload configuration. Regressions
+exercise the real SSG integration, parallel page isolation, font preloads,
+keyframes referenced through custom properties, attribute entities, and asset
+URLs. They assert that critical CSS is present rather than accepting a build
+that silently skipped processing.
+
+```sh
+pnpm exec vitest run test/critical.test.ts
+```
+
+See the [Beasties 0.5.5 release](https://github.com/danielroe/beasties/releases/tag/v0.5.5)
+and [0.5.0 migration notes](https://github.com/danielroe/beasties/releases/tag/v0.5.0).
+After merging the source PR, prepare a fresh distribution with its source
+commit recorded and rerun the validation above before updating consumers.
