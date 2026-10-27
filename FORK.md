@@ -24,13 +24,11 @@ pnpm typecheck
 pnpm pack
 ```
 
-The separate distribution branch contains the generated `dist` and a runtime
-manifest with resolved catalog ranges. Consumers can pin a distribution by
-immutable commit SHA without running build lifecycle scripts at install time.
-When preparing a new distribution, record its source commit in `sourceCommit`.
-Do not edit generated bundles by hand. Before updating a consumer's pinned SHA,
-rerun the package checks and that application's integration checks. Keep the
-upstream MIT license and author credits intact.
+New prereleases use uploaded GitHub Release assets. The separate distribution
+branch remains historical; existing commit pins are preserved. New consumers
+should install the uploaded runtime .tgz rather than automatic source archives.
+The repository must have immutable releases enabled before publication so assets
+and tags cannot be replaced after publishing. Keep the MIT license and credits.
 
 ## Output safety and rendering fixes
 
@@ -132,3 +130,45 @@ only inside each disposable CI job and resolves that target's dependency graph.
 It asserts the installed version before validation. The normal CI jobs continue
 to use the unchanged committed lockfile. No compatibility-specific package or
 new runtime dependency is required.
+
+## GitHub Release procedure
+
+The source version and runtime package version must match. The next version is
+`28.3.0-fork.4`; previously distributed versions and SHAs are never overwritten.
+The release packager keeps the tested runtime peer policy of prior prebuilt
+packages (Vite 7.3.1/8, Vue 3.5.18+, supported stable Router 4/5) rather than
+advertising every historical source peer range. It adds no runtime dependencies.
+
+1. Update the source version in a reviewed PR, run CI, and merge to main.
+2. Run the manual Release workflow on main. It calls the complete CI workflow,
+   including the real-build matrix for Vite 7.3.7 and 8.3.5. Failed checks prevent
+   the packaging job from creating a release.
+3. The workflow builds with Node 24 and frozen pnpm dependencies, then runs
+   `pnpm run release:pack`. This Linux/GNU tar command uses `pnpm pack` as an
+   intermediate, resolves catalogs, removes lifecycle scripts and devDependencies,
+   preserves the executable and required documentation, and records sourceCommit.
+   Archive file order, owner IDs, timestamps and gzip headers are normalized.
+4. Inspect the draft prerelease and its uploaded runtime .tgz, SHA256SUMS, and
+   release-manifest.json. The manifest contains version, source SHA, artifact name,
+   and SHA-256 digest. Verify the package and CI results before publication.
+5. Publish the draft. With repository immutability enabled, the tag and uploaded
+   assets become immutable. Only then update consumers to the asset download URL,
+   regenerate their lockfiles deliberately, and rerun integration checks.
+
+The workflow has no npm publication step, no tag-push trigger and no automatic
+preview publication. It refuses to overwrite an existing release, including a
+draft: inspect an existing draft before retrying. The manual workflow must first
+be merged to the default branch before GitHub allows dispatching it.
+
+To build a local preview on Linux after the normal validation commands:
+
+```sh
+pnpm run release:pack
+(cd release-output && sha256sum --check SHA256SUMS)
+```
+
+`pnpm pack` alone produces the source-development manifest; release:pack is the
+canonical runtime packaging step. Source files, runtime dependency policy, and
+package-version selection are committed together. The hosted workflow uses a
+fresh checkout of its exact main commit; local previews may contain uncommitted
+changes and must not be published as validated releases.

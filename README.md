@@ -27,12 +27,14 @@ not imply that its prebuilt distribution is already available. Check the
 distribution manifest before installing; older distributions can have different
 dependency requirements.
 
-Choose a reviewed commit from the prebuilt distribution branch, which contains
-`dist`, resolved dependency ranges, and a `sourceCommit` identifying its sources.
-Replace `DISTRIBUTION_COMMIT_SHA` below with its full immutable commit SHA:
+Choose a published prerelease from this repository with an uploaded runtime
+package asset. Replace `VERSION` below with the exact fork version (for example,
+`28.3.0-fork.4`) and verify `SHA256SUMS`. Automatic source-code archives are not
+the prebuilt runtime package. A version on this source branch does not mean its
+Release has been published yet: check the Release assets before installing.
 
 ```sh
-pnpm add -D 'vite-ssg@https://codeload.github.com/lucassena/vite-ssg/tar.gz/DISTRIBUTION_COMMIT_SHA'
+pnpm add -D 'vite-ssg@https://github.com/lucassena/vite-ssg/releases/download/vVERSION/vite-ssg-VERSION.tgz'
 pnpm add vue-router @unhead/vue@^3
 ```
 

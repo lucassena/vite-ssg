@@ -6,3 +6,5 @@ examples/*/README.md
 .vite-ssg-regression-*
 *.d.ts
 .idea/
+
+release-output/

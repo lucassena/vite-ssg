@@ -1,7 +1,7 @@
 {
   "name": "vite-ssg",
   "type": "module",
-  "version": "28.3.0-fork.2",
+  "version": "28.3.0-fork.4",
   "packageManager": "pnpm@10.28.2",
   "description": "Server-side generation for Vite",
   "author": "Anthony Fu <anthonyfu117@hotmail.com>",
@@ -71,7 +71,8 @@
     "build": "unbuild",
     "prepublishOnly": "npm run build",
     "typecheck": "vue-tsc --noEmit",
-    "release": "bumpp"
+    "release": "bumpp",
+    "release:pack": "node scripts/package-release.mjs"
   },
   "peerDependencies": {
     "beasties": "^0.5.5",
