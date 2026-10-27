@@ -84,9 +84,8 @@ also ignores leftovers from interrupted runs.
 
 ## Critical CSS compatibility
 
-The next fork prerelease, `28.3.0-fork.2`, requires Beasties `^0.5.5` when
-critical CSS generation is enabled and raises the package Node.js minimum to
-20.19.0. Beasties remains an optional peer; consumers that use it must update
+Since `28.3.0-fork.2`, the fork requires Beasties `^0.5.5` when critical CSS
+generation is enabled, with a package Node.js minimum of 20.19.0. Beasties remains an optional peer; consumers that use it must update
 their own dependency alongside the fork. The supported peer range starts at
 the tested 0.5.5 baseline. In particular, 0.3.5 can select another page's CSS
 when pages share a processor concurrently; its keyframe handling also fails
