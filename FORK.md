@@ -110,3 +110,25 @@ See the [Beasties 0.5.5 release](https://github.com/danielroe/beasties/releases/
 and [0.5.0 migration notes](https://github.com/danielroe/beasties/releases/tag/v0.5.0).
 After merging the source PR, prepare a fresh distribution with its source
 commit recorded and rerun the validation above before updating consumers.
+
+## Vite 7 and 8 compatibility
+
+The fork selects the bundler option name from the installed Vite major version:
+`build.rollupOptions` on Vite 7 and earlier, `build.rolldownOptions` on Vite 8.
+Both the client input and SSR output overrides use that selection, without
+translating consumers' bundler-specific settings or changing browser targets.
+Consumer options continue to be merged through Vite's configuration API.
+
+The CI compatibility matrix builds the package, checks types, builds all examples
+(including PWA, Pinia, and nested routes), and runs the regression suite with
+Vite 7.3.7 and 8.3.5. Regression tests inspect configuration before Vite can
+normalize deprecated aliases, check custom options survive, and verify generated
+HTML. These exact versions are tested baselines, not the complete peer range.
+Older Vite peer ranges remain declared; this matrix does not establish coverage
+for every older major or for future Vite majors.
+
+The matrix first verifies the committed lockfile, then changes the Vite catalog
+only inside each disposable CI job and resolves that target's dependency graph.
+It asserts the installed version before validation. The normal CI jobs continue
+to use the unchanged committed lockfile. No compatibility-specific package or
+new runtime dependency is required.
