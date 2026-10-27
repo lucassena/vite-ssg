@@ -7,7 +7,7 @@ import type { SSRContext } from 'vue/server-renderer'
 import type { ViteSSGContext, ViteSSGOptions } from '../types'
 import { existsSync } from 'node:fs'
 import fs from 'node:fs/promises'
-import { dirname, isAbsolute, join, parse, resolve } from 'node:path'
+import { dirname, isAbsolute, join, parse, relative, resolve } from 'node:path'
 import process from 'node:process'
 import { pathToFileURL } from 'node:url'
 import { transformHtmlTemplate } from '@unhead/vue/server'
@@ -208,8 +208,9 @@ export async function build(ssgOptions: Partial<ViteSSGOptions> = {}, viteConfig
       const destination = await resolveOutputFile(out, filename, realOut)
       await fs.mkdir(dirname(destination), { recursive: true })
       await fs.writeFile(destination, formatted, 'utf-8')
+      const outputFilename = relative(out, destination).replace(/\\/g, '/')
       config.logger.info(
-        `${dim(`${outDir}/`)}${cyan(filename.padEnd(15, ' '))}  ${dim(getSize(formatted))}`,
+        `${dim(`${outDir}/`)}${cyan(outputFilename.padEnd(15, ' '))}  ${dim(getSize(formatted))}`,
       )
     }
     catch (err: any) {

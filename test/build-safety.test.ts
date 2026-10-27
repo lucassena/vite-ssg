@@ -66,6 +66,16 @@ describe('build output safety', () => {
     }, `<main id='app' hidden data-label='a" &amp; b'></main>`)
   }, 30_000)
 
+  it('supports absolute callback filenames inside the output directory', async () => {
+    await withProject(async (root) => {
+      await build({
+        htmlFileName: async file => join(root, 'dist/pages', file),
+        beastiesOptions: false,
+      }, { root, configFile: false, logLevel: 'silent' })
+      expect(await fs.readFile(join(root, 'dist/pages/index.html'), 'utf8')).toContain('Rendered safely')
+    })
+  }, 30_000)
+
   it('propagates page errors to the build caller', async () => {
     await withProject(async (root) => {
       await expect(build({

@@ -51,6 +51,26 @@ describe('output destinations', () => {
     expect(await resolveOutputFile(out, filename)).toBe(resolve(out, expected))
   })
 
+  it('accepts native absolute filenames contained in the output directory', async () => {
+    const filename = join(out, 'pages/home.html')
+    expect(await resolveOutputFile(out, filename)).toBe(filename)
+    expect(await resolveOutputFile(out, filename, await fs.realpath(out))).toBe(filename)
+  })
+
+  it('rejects absolute sibling paths and the output root itself', async () => {
+    await expect(resolveOutputFile(out, join(sandbox, 'outside.html'))).rejects.toThrow('output directory')
+    await expect(resolveOutputFile(out, out)).rejects.toThrow('output directory')
+  })
+
+  it('checks filesystem aliases for absolute callback results', async () => {
+    await fs.symlink(sandbox, join(out, 'alias'), 'junction')
+    await expect(resolveOutputFile(out, join(out, 'alias/page.html'))).rejects.toThrow('output directory')
+  })
+
+  it.runIf(process.platform === 'win32')('rejects streams in native absolute callback results', async () => {
+    await expect(resolveOutputFile(out, join(out, 'page.html:payload'))).rejects.toThrow('output directory')
+  })
+
   it.runIf(process.platform === 'win32').each([
     'alias.html:payload',
     'alias.html:payload:$DATA',

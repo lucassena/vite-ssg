@@ -1,4 +1,8 @@
-# Imovia fork
+# vite-ssg fork
+
+This fork provides Unhead 3 SSR compatibility and static-generation fixes for
+Vue applications. Its behavior and maintenance policy apply to all consumers.
+Fork prereleases use the `-fork.N` suffix, starting with `28.3.0-fork.1`.
 
 Based on upstream v28.3.0 (`4be6e3c31b905f991cda89bcfd598442f8388ffd`).
 The source branch `codex/unhead3-ssr` cherry-picks upstream PR #470,
@@ -21,22 +25,26 @@ pnpm pack
 ```
 
 The separate distribution branch contains the generated `dist` and a runtime
-manifest with resolved catalog ranges. Imovia installs that branch by an
-immutable commit SHA, without running build lifecycle scripts at install time.
-The distribution manifest records the source commit in `imoviaSourceCommit`.
-Do not edit generated bundles by hand or update the pinned SHA without rerunning
-upstream and Imovia integration checks. Keep the upstream MIT license intact.
+manifest with resolved catalog ranges. Consumers can pin a distribution by
+immutable commit SHA without running build lifecycle scripts at install time.
+When preparing a new distribution, record its source commit in `sourceCommit`.
+Do not edit generated bundles by hand. Before updating a consumer's pinned SHA,
+rerun the package checks and that application's integration checks. Keep the
+upstream MIT license and author credits intact.
 
 ## Output safety and rendering fixes
 
 The canonical output root is resolved once after the client build and reused
 for page validation. Existing destination ancestors are still checked per page.
 
-Page output paths are checked after the `htmlFileName` callback. Absolute paths,
-Windows drive paths, and relative paths that escape `build.outDir` are rejected.
-On Windows, colons in output filenames are rejected to block NTFS alternate
+Page output paths are checked after the `htmlFileName` callback. Relative and
+native absolute paths are accepted only when their destinations stay inside
+`build.outDir`. Paths that escape the output directory, foreign-platform
+absolute paths, and Windows drive-relative paths are rejected.
+On Windows, colons after the path's root are rejected to block NTFS alternate
 data streams, including new streams on hard-linked files. POSIX filenames may
 still contain literal colons.
+Build logs show the normalized destination relative to the output directory.
 Names with trailing dots or spaces are rejected to avoid Windows path aliases.
 Backslashes in callback results are treated as directory separators. Existing
 file or directory symlinks must resolve within the output directory; internal

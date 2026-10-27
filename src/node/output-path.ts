@@ -1,5 +1,5 @@
 import fs from 'node:fs/promises'
-import { dirname, isAbsolute, relative, resolve, sep, win32 } from 'node:path'
+import { dirname, isAbsolute, parse, relative, resolve, sep, win32 } from 'node:path'
 import process from 'node:process'
 
 function isContained(root: string, path: string) {
@@ -11,12 +11,14 @@ export async function resolveOutputFile(out: string, filename: string, canonical
   const normalized = filename.replace(/\\/g, '/')
   const root = resolve(out)
   const destination = resolve(root, normalized)
+  const nativeAbsolute = isAbsolute(normalized)
+  const pathWithoutRoot = nativeAbsolute ? normalized.slice(parse(normalized).root.length) : normalized
   const invalidPath = () => new Error(`Invalid output filename ${JSON.stringify(filename)}: must stay inside the output directory`)
 
   const hasWindowsAlias = normalized.split('/').some(part => part !== '.' && part !== '..' && /[. ]$/.test(part))
-  if (!normalized || isAbsolute(normalized) || win32.isAbsolute(normalized)
-    || (process.platform === 'win32' && normalized.includes(':'))
-    || hasWindowsAlias || destination === root || !isContained(root, destination)) {
+  if (!normalized || (win32.isAbsolute(normalized) && !nativeAbsolute)
+    || (process.platform === 'win32' && pathWithoutRoot.includes(':'))
+    || hasWindowsAlias || !relative(root, destination) || !isContained(root, destination)) {
     throw invalidPath()
   }
 
