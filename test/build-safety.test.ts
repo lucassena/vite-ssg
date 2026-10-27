@@ -72,6 +72,7 @@ describe('build output safety', () => {
         beastiesOptions: false,
         onPageRendered: () => { throw new Error('Page hook failed') },
       }, { root, configFile: false, logLevel: 'silent' })).rejects.toThrow('Page hook failed')
+      await expect(fs.stat(join(root, '.vite-ssg-temp'))).rejects.toMatchObject({ code: 'ENOENT' })
     })
   }, 30_000)
 })

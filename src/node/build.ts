@@ -215,12 +215,15 @@ export async function build(ssgOptions: Partial<ViteSSGOptions> = {}, viteConfig
     }
   }))
 
-  const results = await Promise.allSettled(pageTasks)
-  const failure = results.find(result => result.status === 'rejected')
-  if (failure?.status === 'rejected')
-    throw failure.reason
-
-  await fs.rm(ssgOutTempFolder, { recursive: true, force: true })
+  try {
+    const results = await Promise.allSettled(pageTasks)
+    const failure = results.find(result => result.status === 'rejected')
+    if (failure?.status === 'rejected')
+      throw failure.reason
+  }
+  finally {
+    await fs.rm(ssgOutTempFolder, { recursive: true, force: true })
+  }
 
   // when `vite-plugin-pwa` is presented, use it to regenerate SW after rendering
   const pwaPlugin: VitePluginPWAAPI = config.plugins.find(i => i.name === 'vite-plugin-pwa')?.api

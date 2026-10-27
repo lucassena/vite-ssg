@@ -30,7 +30,6 @@ describe('output destinations', () => {
     '\\\\server\\share\\page.html',
     'C:/outside.html',
     'C:\\outside.html',
-    'C:outside.html',
     'pages/.. /outside.html',
     'pages./index.html',
     'page.html ',
@@ -82,6 +81,17 @@ describe('output destinations', () => {
       await expect(fs.stat(`${target}:${stream}`)).rejects.toMatchObject({ code: 'ENOENT' })
     },
   )
+
+  it.runIf(process.platform === 'win32')('rejects drive-relative filenames on Windows', async () => {
+    await expect(resolveOutputFile(out, 'C:outside.html')).rejects.toThrow('output directory')
+  })
+
+  it.runIf(process.platform !== 'win32')('preserves drive-like colon filenames on POSIX', async () => {
+    for (const filename of ['a:b.html', 'C:outside.html']) {
+      const destination = await resolveOutputFile(out, filename)
+      expect(destination).toBe(join(out, filename))
+    }
+  })
 
   it.runIf(process.platform !== 'win32')('preserves literal colon filenames on POSIX', async () => {
     await fs.mkdir(join(out, 'nested'))

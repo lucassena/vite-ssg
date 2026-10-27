@@ -15,7 +15,7 @@ export async function resolveOutputFile(out: string, filename: string) {
 
   const hasWindowsAlias = normalized.split('/').some(part => part !== '.' && part !== '..' && /[. ]$/.test(part))
   if (!normalized || isAbsolute(normalized) || win32.isAbsolute(normalized)
-    || /^[a-z]:/i.test(normalized) || (process.platform === 'win32' && normalized.includes(':'))
+    || (process.platform === 'win32' && normalized.includes(':'))
     || hasWindowsAlias || destination === root || !isContained(root, destination)) {
     throw invalidPath()
   }
