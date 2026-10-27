@@ -3,5 +3,6 @@ node_modules
 dist
 examples/*/README.md
 .vite-ssg-temp
+.vite-ssg-regression-*
 *.d.ts
 .idea/

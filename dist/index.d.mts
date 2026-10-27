@@ -1,6 +1,6 @@
 import { Component } from 'vue';
-import { R as RouterOptions, V as ViteSSGContext, a as ViteSSGClientOptions } from './shared/vite-ssg.SQu03z1R.mjs';
-export { b as ViteSSGOptions } from './shared/vite-ssg.SQu03z1R.mjs';
+import { R as RouterOptions, V as ViteSSGContext, a as ViteSSGClientOptions } from './shared/vite-ssg.BreG4VMo.mjs';
+export { b as ViteSSGOptions } from './shared/vite-ssg.BreG4VMo.mjs';
 import '@unhead/vue';
 import 'beasties';
 import 'vue-router';

@@ -1,5 +1,5 @@
 import { InlineConfig } from 'vite';
-import { b as ViteSSGOptions } from './shared/vite-ssg.SQu03z1R.mjs';
+import { b as ViteSSGOptions } from './shared/vite-ssg.BreG4VMo.mjs';
 import '@unhead/vue';
 import 'beasties';
 import 'vue';

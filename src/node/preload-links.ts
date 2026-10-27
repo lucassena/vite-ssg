@@ -51,8 +51,17 @@ function setAttrs(el: Element, attrs: Record<string, any>) {
 }
 
 function appendLink(document: Document, attrs: Record<string, any>) {
-  const exits = document.head.querySelector(`link[href='${attrs.file}']`)
-  if (exits)
+  const exists = Array.from(document.head.querySelectorAll('link')).some((link) => {
+    const rel = (link.getAttribute('rel') || '').trim().toLowerCase()
+    if (link.getAttribute('href') !== attrs.href || rel !== attrs.rel)
+      return false
+    if (attrs.rel !== 'stylesheet')
+      return true
+
+    const media = (link.getAttribute('media') || '').trim().toLowerCase()
+    return !link.hasAttribute('disabled') && (!media || media === 'all')
+  })
+  if (exists)
     return
   const link = createLink(document)
   setAttrs(link, attrs)

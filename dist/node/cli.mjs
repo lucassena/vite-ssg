@@ -1,7 +1,7 @@
 import process from 'node:process';
 import { gray, bold, red, yellow } from 'ansis';
 import { cac } from 'cac';
-import { b as build } from '../shared/vite-ssg.Baur_jhx.mjs';
+import { b as build } from '../shared/vite-ssg.kqafNelK.mjs';
 import 'node:fs';
 import 'node:fs/promises';
 import 'node:path';

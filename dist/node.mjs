@@ -1,4 +1,4 @@
-export { b as build } from './shared/vite-ssg.Baur_jhx.mjs';
+export { b as build } from './shared/vite-ssg.kqafNelK.mjs';
 import 'node:fs';
 import 'node:fs/promises';
 import 'node:path';

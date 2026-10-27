@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs';
 import fs from 'node:fs/promises';
-import { resolve, isAbsolute, parse, join, dirname } from 'node:path';
+import { resolve, isAbsolute, parse, win32, relative, dirname, sep, join } from 'node:path';
 import process from 'node:process';
 import { pathToFileURL } from 'node:url';
 import { transformHtmlTemplate } from '@unhead/vue/server';
@@ -1260,6 +1260,42 @@ async function getBeasties(outDir, options = {}) {
   }
 }
 
+function isContained(root, path) {
+  const remainder = relative(root, path);
+  return remainder !== ".." && !remainder.startsWith(`..${sep}`) && !isAbsolute(remainder);
+}
+async function resolveOutputFile(out, filename, canonicalRoot) {
+  const normalized = filename.replace(/\\/g, "/");
+  const root = resolve(out);
+  const destination = resolve(root, normalized);
+  const nativeAbsolute = isAbsolute(normalized);
+  const pathWithoutRoot = nativeAbsolute ? normalized.slice(parse(normalized).root.length) : normalized;
+  const invalidPath = () => new Error(`Invalid output filename ${JSON.stringify(filename)}: must stay inside the output directory`);
+  const hasWindowsAlias = normalized.split("/").some((part) => part !== "." && part !== ".." && /[. ]$/.test(part));
+  if (!normalized || win32.isAbsolute(normalized) && !nativeAbsolute || process.platform === "win32" && pathWithoutRoot.includes(":") || hasWindowsAlias || !relative(root, destination) || !isContained(root, destination)) {
+    throw invalidPath();
+  }
+  let ancestor = destination;
+  while (true) {
+    try {
+      await fs.lstat(ancestor);
+      break;
+    } catch (error) {
+      if (error.code !== "ENOENT")
+        throw error;
+      ancestor = dirname(ancestor);
+    }
+  }
+  const realRoot = canonicalRoot ?? await fs.realpath(root);
+  const realAncestor = ancestor === root ? realRoot : await fs.realpath(ancestor);
+  if (!isContained(realRoot, realAncestor))
+    throw invalidPath();
+  const existing = await fs.stat(realAncestor);
+  if (existing.isFile() && existing.nlink > 1)
+    throw new Error(`Invalid output filename ${JSON.stringify(filename)}: hard-linked output files are not supported (link count: ${existing.nlink})`);
+  return destination;
+}
+
 function renderPreloadLinks(document, modules, ssrManifest) {
   const seen = /* @__PURE__ */ new Set();
   const preloadLinks = [];
@@ -1302,8 +1338,16 @@ function setAttrs(el, attrs) {
     el.setAttribute(key, attrs[key]);
 }
 function appendLink(document, attrs) {
-  const exits = document.head.querySelector(`link[href='${attrs.file}']`);
-  if (exits)
+  const exists = Array.from(document.head.querySelectorAll("link")).some((link2) => {
+    const rel = (link2.getAttribute("rel") || "").trim().toLowerCase();
+    if (link2.getAttribute("href") !== attrs.href || rel !== attrs.rel)
+      return false;
+    if (attrs.rel !== "stylesheet")
+      return true;
+    const media = (link2.getAttribute("media") || "").trim().toLowerCase();
+    return !link2.hasAttribute("disabled") && (!media || media === "all");
+  });
+  if (exists)
     return;
   const link = createLink(document);
   setAttrs(link, attrs);
@@ -1390,6 +1434,7 @@ async function build(ssgOptions = {}, viteConfig = {}) {
     },
     mode: config.mode
   }));
+  const realOut = await fs.realpath(out);
   if (mock) {
     const { jsdomGlobal } = await import('../chunks/jsdomGlobal.mjs');
     jsdomGlobal();
@@ -1443,51 +1488,63 @@ async function build(ssgOptions = {}, viteConfig = {}) {
   indexHTML = rewriteScripts(indexHTML, script);
   const { renderToString } = await import('vue/server-renderer');
   const queue = new PQueue({ concurrency });
-  for (const route of routesPaths) {
-    queue.add(async () => {
-      try {
-        const appCtx = await createApp(route);
-        const { app, router, head, initialState, triggerOnSSRAppRendered, transformState = serializeState } = appCtx;
-        if (router) {
-          await router.push(route);
-          await router.isReady();
-        }
-        const transformedIndexHTML = await onBeforePageRender?.(route, indexHTML, appCtx) || indexHTML;
-        const ctx = {};
-        const appHTML = await renderToString(app, ctx);
-        await triggerOnSSRAppRendered?.(route, appHTML, appCtx);
-        const renderedHTML = await renderHTML({
-          rootContainerId,
-          indexHTML: transformedIndexHTML,
-          appHTML,
-          initialState: transformState(initialState)
-        });
-        const jsdom = new JSDOM(renderedHTML);
-        renderPreloadLinks(jsdom.window.document, ctx.modules || /* @__PURE__ */ new Set(), ssrManifest);
-        const template = jsdom.serialize();
-        const html = head ? transformHtmlTemplate(head, template) : template;
-        let transformed = await onPageRendered?.(route, html, appCtx) || html;
-        if (beasties)
-          transformed = await beasties.process(transformed);
-        const formatted = await formatHtml(transformed, formatting);
-        const relativeRouteFile = `${(route.endsWith("/") ? `${route}index` : route).replace(/^\//g, "")}.html`;
-        const filename = await prepareHtmlFileName(
-          dirStyle === "nested" ? join(route.replace(/^\//g, ""), "index.html") : relativeRouteFile,
-          htmlFileName
-        );
-        await fs.mkdir(resolve(out, dirname(filename)), { recursive: true });
-        await fs.writeFile(resolve(out, filename), formatted, "utf-8");
-        config.logger.info(
-          `${dim(`${outDir}/`)}${cyan(filename.padEnd(15, " "))}  ${dim(getSize(formatted))}`
-        );
-      } catch (err) {
-        throw new Error(`${gray("[vite-ssg]")} ${red(`Error on page: ${cyan(route)}`)}
-${err.stack}`);
+  const pageTasks = routesPaths.map((route) => queue.add(async () => {
+    try {
+      const appCtx = await createApp(route);
+      const { app, router, head, initialState, triggerOnSSRAppRendered, transformState = serializeState } = appCtx;
+      if (router) {
+        await router.push(route);
+        await router.isReady();
       }
-    });
+      const transformedIndexHTML = await onBeforePageRender?.(route, indexHTML, appCtx) || indexHTML;
+      const ctx = {};
+      const appHTML = await renderToString(app, ctx);
+      await triggerOnSSRAppRendered?.(route, appHTML, appCtx);
+      const renderedHTML = await renderHTML({
+        rootContainerId,
+        indexHTML: transformedIndexHTML,
+        appHTML,
+        initialState: transformState(initialState)
+      });
+      const jsdom = new JSDOM(renderedHTML);
+      renderPreloadLinks(jsdom.window.document, ctx.modules || /* @__PURE__ */ new Set(), ssrManifest);
+      const template = jsdom.serialize();
+      const html = head ? transformHtmlTemplate(head, template) : template;
+      let transformed = await onPageRendered?.(route, html, appCtx) || html;
+      if (beasties)
+        transformed = await beasties.process(transformed);
+      const formatted = await formatHtml(transformed, formatting);
+      const relativeRouteFile = `${(route.endsWith("/") ? `${route}index` : route).replace(/^\//g, "")}.html`;
+      const filename = await prepareHtmlFileName(
+        dirStyle === "nested" ? join(route.replace(/^\//g, ""), "index.html") : relativeRouteFile,
+        htmlFileName
+      );
+      const destination = await resolveOutputFile(out, filename, realOut);
+      await fs.mkdir(dirname(destination), { recursive: true });
+      await fs.writeFile(destination, formatted, "utf-8");
+      const outputFilename = relative(out, destination).replace(/\\/g, "/");
+      config.logger.info(
+        `${dim(`${outDir}/`)}${cyan(outputFilename.padEnd(15, " "))}  ${dim(getSize(formatted))}`
+      );
+    } catch (err) {
+      throw new Error(`${gray("[vite-ssg]")} ${red(`Error on page: ${cyan(route)}`)}
+${err.stack}`);
+    }
+  }));
+  try {
+    const results = await Promise.allSettled(pageTasks);
+    const failures = results.flatMap((result, index) => result.status === "rejected" ? [{ route: routesPaths[index], reason: result.reason }] : []);
+    if (failures.length === 1)
+      throw failures[0].reason;
+    if (failures.length > 1) {
+      throw new AggregateError(
+        failures.map((failure) => failure.reason),
+        `[vite-ssg] Failed to render ${failures.length} pages: ${failures.map((failure) => failure.route).join(", ")}`
+      );
+    }
+  } finally {
+    await fs.rm(ssgOutTempFolder, { recursive: true, force: true });
   }
-  await queue.start().onIdle();
-  await fs.rm(ssgOutTempFolder, { recursive: true, force: true });
   const pwaPlugin = config.plugins.find((i) => i.name === "vite-plugin-pwa")?.api;
   if (pwaPlugin && !pwaPlugin.disabled && pwaPlugin.generateSW) {
     buildLog("Regenerate PWA...");
@@ -1539,7 +1596,7 @@ async function renderHTML({
   html5Parser.walk(ast, {
     enter: (node) => {
       if (!renderedOutput && node?.type === html5Parser.SyntaxKind.Tag && Array.isArray(node.attributes) && node.attributes.length > 0 && node.attributes.some((attr) => attr.name.value === "id" && attr.value?.value === rootContainerId)) {
-        const attributesStringified = [...node.attributes.map(({ name: { value: name }, value }) => `${name}="${value.value}"`)].join(" ");
+        const attributesStringified = node.attributes.map((attribute) => indexHTML.slice(attribute.start, attribute.end)).join(" ");
         const indexHTMLBefore = indexHTML.slice(0, node.start);
         const indexHTMLAfter = indexHTML.slice(node.end);
         renderedOutput = `${indexHTMLBefore}<${node.name} ${attributesStringified} data-server-rendered="true">${appHTML}</${node.name}>${stateScript}${indexHTMLAfter}`;
