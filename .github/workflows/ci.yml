@@ -85,3 +85,38 @@ jobs:
 
       - name: Test
         run: nr test
+
+  vite-compatibility:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        vite: [7.3.7, 8.3.5]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Select Vite compatibility target
+        env:
+          VITE_TEST_VERSION: ${{ matrix.vite }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync, writeFileSync } from 'node:fs'
+          const file = 'pnpm-workspace.yaml'
+          const source = readFileSync(file, 'utf8')
+          const updated = source.replace(/^  vite: .+$/m, `  vite: ${process.env.VITE_TEST_VERSION}`)
+          if (source === updated) throw new Error('Vite catalog entry was not replaced')
+          writeFileSync(file, updated)
+          NODE
+          pnpm install --no-frozen-lockfile
+      - name: Verify installed Vite version
+        env:
+          VITE_TEST_VERSION: ${{ matrix.vite }}
+        run: node --input-type=module -e "import { version } from 'vite'; if (version !== process.env.VITE_TEST_VERSION) throw new Error(version)"
+      - run: pnpm build
+      - run: pnpm typecheck
+      - run: pnpm test
