@@ -6,6 +6,8 @@ Maintained in [lucassena/vite-ssg](https://github.com/lucassena/vite-ssg), based
 [upstream Vite SSG](https://github.com/antfu-collective/vite-ssg) v28.3.0.
 This fork provides Unhead 3 SSR compatibility, output-path validation,
 rendering fixes, and updated critical CSS integration for Vue applications.
+The source also selects native build options for Vite 7/8, with a dedicated
+compatibility test matrix; see the tested versions and limits in FORK.md.
 See [FORK.md](./FORK.md) for behavior changes, compatibility, and distribution
 policy. Report fork issues and submit pull requests to this repository.
 
