@@ -2,9 +2,25 @@ import fs from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { JSDOM } from 'jsdom'
-import { describe, expect, it } from 'vitest'
+import { version as viteVersion } from 'vite'
+import { describe, expect, it, vi } from 'vitest'
 import { build } from '../src/node/build'
 import { renderPreloadLinks } from '../src/node/preload-links'
+
+// Record the SSG overrides before mergeConfig adds Vite 8 compatibility aliases.
+const { buildOptionKeys } = vi.hoisted(() => ({ buildOptionKeys: [] as string[][] }))
+vi.mock('vite', async (importOriginal) => {
+  const vite = await importOriginal<typeof import('vite')>()
+  return {
+    ...vite,
+    mergeConfig: (...args: Parameters<typeof vite.mergeConfig>) => {
+      const overrides = args[1]
+      if (overrides.build?.ssrManifest || overrides.build?.ssr)
+        buildOptionKeys.push(Object.keys(overrides.build))
+      return vite.mergeConfig(...args)
+    },
+  }
+})
 
 const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
 
@@ -26,6 +42,55 @@ async function withProject(run: (root: string) => Promise<void>, container = '<d
 }
 
 describe('build output safety', () => {
+  it.each([false, true])('uses native bundler options and preserves custom options (custom=%s)', async (custom) => {
+    await withProject(async (root) => {
+      const key = Number.parseInt(viteVersion, 10) >= 8 ? 'rolldownOptions' : 'rollupOptions'
+      const otherKey = key === 'rolldownOptions' ? 'rollupOptions' : 'rolldownOptions'
+      const builds: boolean[] = []
+      const firstBuild = buildOptionKeys.length
+      await build({ beastiesOptions: false }, {
+        root,
+        configFile: false,
+        logLevel: 'silent',
+        build: custom
+          ? {
+              [key]: { output: { assetFileNames: 'custom/[name][extname]' }, treeshake: false },
+            }
+          : {},
+        plugins: [{
+          name: 'assert-native-bundler-options',
+          config(config) {
+            const options = config.build?.[key]
+            if (!config.build?.ssrManifest && !config.build?.ssr)
+              return
+            expect(options).toBeDefined()
+            if (config.build?.ssr) {
+              expect(options?.output).toMatchObject({ entryFileNames: '[name].mjs', format: 'esm' })
+              builds.push(true)
+            }
+            else {
+              expect(options?.input).toMatchObject({ app: join(root, 'index.html') })
+              builds.push(false)
+            }
+            if (custom) {
+              expect(options?.treeshake).toBe(false)
+              expect(options?.output).toMatchObject({ assetFileNames: 'custom/[name][extname]' })
+            }
+          },
+        }],
+      })
+      expect(builds).toEqual([false, true])
+      const keys = buildOptionKeys.slice(firstBuild)
+      expect(keys).toHaveLength(2)
+      for (const injectedKeys of keys) {
+        expect(injectedKeys).toContain(key)
+        expect(injectedKeys).not.toContain(otherKey)
+      }
+      expect(await fs.readFile(join(root, 'dist/index.html'), 'utf8')).toContain('Rendered safely')
+      await expect(fs.stat(join(root, '.vite-ssg-temp'))).rejects.toMatchObject({ code: 'ENOENT' })
+    })
+  }, 30_000)
+
   it.each(['flat', 'nested'] as const)('rejects API route traversal in %s mode', async (dirStyle) => {
     await withProject(async (root) => {
       let finished = false

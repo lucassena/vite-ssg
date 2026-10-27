@@ -14,7 +14,7 @@ import { transformHtmlTemplate } from '@unhead/vue/server'
 import { blue, cyan, dim, gray, green, red } from 'ansis'
 import { JSDOM } from 'jsdom'
 import PQueue from 'p-queue'
-import { mergeConfig, resolveConfig, build as viteBuild } from 'vite'
+import { mergeConfig, resolveConfig, build as viteBuild, version as viteVersion } from 'vite'
 import { serializeState } from '../utils/state'
 import { getBeasties } from './critical'
 import { resolveOutputFile } from './output-path'
@@ -31,6 +31,8 @@ function DefaultIncludedRoutes(paths: string[], _routes: Readonly<RouteRecordRaw
 }
 
 export async function build(ssgOptions: Partial<ViteSSGOptions> = {}, viteConfig: InlineConfig = {}) {
+  // Use the native option name without dropping support for older Vite releases.
+  const bundlerOptionsKey = Number.parseInt(viteVersion, 10) >= 8 ? 'rolldownOptions' : 'rollupOptions'
   const nodeEnv = process.env.NODE_ENV || 'production'
   const mode = process.env.MODE || ssgOptions.mode || nodeEnv
   const config = await resolveConfig(viteConfig, 'build', mode, nodeEnv)
@@ -71,7 +73,7 @@ export async function build(ssgOptions: Partial<ViteSSGOptions> = {}, viteConfig
     base,
     build: {
       ssrManifest: true,
-      rollupOptions: {
+      [bundlerOptionsKey]: {
         input: {
           app: resolve(root, './index.html'),
         },
@@ -100,7 +102,7 @@ export async function build(ssgOptions: Partial<ViteSSGOptions> = {}, viteConfig
       outDir: ssgOut,
       minify: false,
       cssCodeSplit: false,
-      rollupOptions: {
+      [bundlerOptionsKey]: {
         output: {
           entryFileNames: '[name].mjs',
           format: 'esm',
