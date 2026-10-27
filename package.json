@@ -43,10 +43,10 @@
   },
   "files": [
     "*.d.ts",
-    "bin",
-    "dist",
+    "CONTRIBUTING.md",
     "FORK.md",
-    "CONTRIBUTING.md"
+    "bin",
+    "dist"
   ],
   "engines": {
     "node": ">=20.19.0"
