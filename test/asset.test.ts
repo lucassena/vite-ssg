@@ -42,6 +42,20 @@ describe('multiple-pages', () => {
 })
 
 describe('single-page', () => {
+  it('inlines critical CSS in the built page', async () => {
+    const file = await fs.readFile('examples/single-page/dist/index.html', 'utf-8')
+    const dom = new JSDOM(file)
+    try {
+      const critical = [...dom.window.document.querySelectorAll('style')].map(style => style.textContent).join('\n')
+      expect(critical).toContain('#app')
+      expect(critical).toMatch(/padding:\s*4em 8em/)
+      expect(critical).toMatch(/font-family:\s*sans-serif/)
+    }
+    finally {
+      dom.window.close()
+    }
+  })
+
   it('renders SSR head attributes and body tags', async () => {
     const file = await fs.readFile('examples/single-page/dist/index.html', 'utf-8')
     const { document } = new JSDOM(file).window

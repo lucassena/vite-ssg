@@ -120,9 +120,10 @@ Vite SSG has built-in support for generating [Critical CSS](https://web.dev/extr
 Install it with:
 
 ```bash
-npm i -D beasties
+npm i -D beasties@^0.5.5
 ```
 
+This fork supports Beasties `^0.5.5` and requires Node.js 20.19.0 or newer.
 Critical CSS generation will automatically be enabled for you.
 
 To configure `beasties`, pass [its options](https://github.com/danielroe/beasties#usage) into `ssgOptions.beastiesOptions` in `vite.config.ts`:
