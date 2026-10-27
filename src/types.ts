@@ -130,6 +130,8 @@ export interface ViteSSGOptions {
    * will not match the route name.
    *
    * The provided HTML filename will always be relative to the output directory.
+   * The returned filename may be relative or absolute, but its destination must
+   * remain inside the output directory.
    *
    * @param filename The file name including the `.html` extension.
    * @return The new file name, or `undefined` to keep the default behavior.
