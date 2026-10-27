@@ -35,9 +35,9 @@ export async function resolveOutputFile(out: string, filename: string, canonical
   }
   const realRoot = canonicalRoot ?? await fs.realpath(root)
   const realAncestor = ancestor === root ? realRoot : await fs.realpath(ancestor)
-  const existing = await fs.stat(realAncestor)
   if (!isContained(realRoot, realAncestor))
     throw invalidPath()
+  const existing = await fs.stat(realAncestor)
   if (existing.isFile() && existing.nlink > 1)
     throw new Error(`Invalid output filename ${JSON.stringify(filename)}: hard-linked output files are not supported (link count: ${existing.nlink})`)
 
