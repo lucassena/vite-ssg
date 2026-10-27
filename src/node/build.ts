@@ -217,9 +217,17 @@ export async function build(ssgOptions: Partial<ViteSSGOptions> = {}, viteConfig
 
   try {
     const results = await Promise.allSettled(pageTasks)
-    const failure = results.find(result => result.status === 'rejected')
-    if (failure?.status === 'rejected')
-      throw failure.reason
+    const failures = results.flatMap((result, index) => result.status === 'rejected'
+      ? [{ route: routesPaths[index], reason: result.reason }]
+      : [])
+    if (failures.length === 1)
+      throw failures[0].reason
+    if (failures.length > 1) {
+      throw new AggregateError(
+        failures.map(failure => failure.reason),
+        `[vite-ssg] Failed to render ${failures.length} pages: ${failures.map(failure => failure.route).join(', ')}`,
+      )
+    }
   }
   finally {
     await fs.rm(ssgOutTempFolder, { recursive: true, force: true })

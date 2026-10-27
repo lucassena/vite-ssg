@@ -42,9 +42,18 @@ existing hard-linked files fail the build. Keep the build workspace under
 trusted ownership: this check does not protect against another process
 replacing symlinks during a build.
 
+Hard-linked output files are rejected even when all known names are inside
+the output directory: the link count cannot identify the locations of other
+names. This rejection reports a specific hard-link error and the link count.
+
 Page failures reject `build()` after queued page tasks settle. They prevent the
-success message, PWA regeneration, and `onFinished` callback. Root-container
-attributes preserve their original quoting, entities, and boolean syntax.
+success message, PWA regeneration, and `onFinished` callback.
+If several pages fail, `build()` throws an `AggregateError` listing their
+routes and retaining every page error in `errors`. A single failed page
+continues to throw its original error. All queued pages still run to completion.
+
+Root-container attributes preserve their original quoting, entities, and
+boolean syntax.
 Preload and stylesheet links are deduplicated by their `href` and `rel` values.
 For stylesheets, only enabled links with no media condition or `media="all"`
 suppress a generated link. Conditional or disabled stylesheets remain intact

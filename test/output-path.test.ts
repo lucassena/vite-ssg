@@ -125,10 +125,18 @@ describe('output destinations', () => {
     const target = join(sandbox, 'outside.html')
     await fs.writeFile(target, 'preserved')
     await fs.link(target, join(out, 'alias.html'))
-    await expect(resolveOutputFile(out, 'alias.html')).rejects.toThrow('output directory')
+    await expect(resolveOutputFile(out, 'alias.html')).rejects.toThrow('hard-linked output files')
     expect(await fs.readFile(target, 'utf8')).toBe('preserved')
     await fs.symlink(join(out, 'alias.html'), join(out, 'indirect.html'), 'file')
-    await expect(resolveOutputFile(out, 'indirect.html')).rejects.toThrow('output directory')
+    await expect(resolveOutputFile(out, 'indirect.html')).rejects.toThrow('hard-linked output files')
+  })
+
+  it('explains hard-link rejection even when both names are inside output', async () => {
+    const target = join(out, 'original.html')
+    await fs.writeFile(target, 'preserved')
+    await fs.link(target, join(out, 'alias.html'))
+    await expect(resolveOutputFile(out, 'alias.html')).rejects.toThrow('hard-linked output files are not supported (link count: 2)')
+    expect(await fs.readFile(target, 'utf8')).toBe('preserved')
   })
 
   it('allows internal directory aliases and a symlinked output root', async () => {

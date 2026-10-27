@@ -75,6 +75,35 @@ describe('build output safety', () => {
       await expect(fs.stat(join(root, '.vite-ssg-temp'))).rejects.toMatchObject({ code: 'ENOENT' })
     })
   }, 30_000)
+
+  it('reports every failed route after all page tasks settle and cleans temporary files', async () => {
+    await withProject(async (root) => {
+      let successfulPageCompleted = false
+      let finished = false
+      const error = await build({
+        includedRoutes: () => ['/first', '/ok', '/second'],
+        concurrency: 2,
+        beastiesOptions: false,
+        onPageRendered: async (route) => {
+          if (route !== '/ok')
+            throw new Error(`Failure for ${route}`)
+          await new Promise(resolve => setTimeout(resolve, 20))
+          successfulPageCompleted = true
+        },
+        onFinished: () => { finished = true },
+      }, { root, configFile: false, logLevel: 'silent' }).catch(error => error)
+
+      expect(error).toBeInstanceOf(AggregateError)
+      expect(error.message).toBe('[vite-ssg] Failed to render 2 pages: /first, /second')
+      expect(error.errors).toHaveLength(2)
+      expect(error.errors[0].message).toContain('Failure for /first')
+      expect(error.errors[1].message).toContain('Failure for /second')
+      expect(successfulPageCompleted).toBe(true)
+      expect(finished).toBe(false)
+      expect(await fs.readFile(join(root, 'dist/ok.html'), 'utf8')).toContain('Rendered safely')
+      await expect(fs.stat(join(root, '.vite-ssg-temp'))).rejects.toMatchObject({ code: 'ENOENT' })
+    })
+  }, 30_000)
 })
 
 describe('preload links', () => {
