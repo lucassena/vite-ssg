@@ -52,13 +52,14 @@ function setAttrs(el: Element, attrs: Record<string, any>) {
 
 function appendLink(document: Document, attrs: Record<string, any>) {
   const exists = Array.from(document.head.querySelectorAll('link')).some((link) => {
-    if (link.getAttribute('href') !== attrs.href || link.getAttribute('rel') !== attrs.rel)
+    const rel = (link.getAttribute('rel') || '').trim().toLowerCase()
+    if (link.getAttribute('href') !== attrs.href || rel !== attrs.rel)
       return false
     if (attrs.rel !== 'stylesheet')
       return true
 
     const media = (link.getAttribute('media') || '').trim().toLowerCase()
-    return !link.hasAttribute('disabled') && !link.disabled && (!media || media === 'all')
+    return !link.hasAttribute('disabled') && (!media || media === 'all')
   })
   if (exists)
     return

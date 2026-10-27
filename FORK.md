@@ -29,6 +29,9 @@ upstream and Imovia integration checks. Keep the upstream MIT license intact.
 
 ## Output safety and rendering fixes
 
+The canonical output root is resolved once after the client build and reused
+for page validation. Existing destination ancestors are still checked per page.
+
 Page output paths are checked after the `htmlFileName` callback. Absolute paths,
 Windows drive paths, and relative paths that escape `build.outDir` are rejected.
 On Windows, colons in output filenames are rejected to block NTFS alternate
@@ -55,6 +58,8 @@ continues to throw its original error. All queued pages still run to completion.
 Root-container attributes preserve their original quoting, entities, and
 boolean syntax.
 Preload and stylesheet links are deduplicated by their `href` and `rel` values.
+Relation matching ignores case and surrounding whitespace. URL strings remain
+distinct because relative references depend on the page's effective base URL.
 For stylesheets, only enabled links with no media condition or `media="all"`
 suppress a generated link. Conditional or disabled stylesheets remain intact
 and do not prevent the page from receiving unconditional CSS.
@@ -66,3 +71,7 @@ pnpm exec vitest run test/build-safety.test.ts test/output-path.test.ts
 ```
 
 Run the complete validation commands above before publishing a new distribution.
+
+Build fixtures use `.vite-ssg-regression-*` directories under the repository so
+they can resolve workspace dependencies. Tests remove them in `finally`; Git
+also ignores leftovers from interrupted runs.

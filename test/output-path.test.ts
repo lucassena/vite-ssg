@@ -147,4 +147,12 @@ describe('output destinations', () => {
     await fs.symlink(out, linkedRoot, 'junction')
     expect(await resolveOutputFile(linkedRoot, 'index.html')).toBe(join(linkedRoot, 'index.html'))
   })
+
+  it('preserves containment checks when the canonical output root is reused', async () => {
+    const realRoot = await fs.realpath(out)
+    expect(await resolveOutputFile(out, 'nested/page.html', realRoot)).toBe(join(out, 'nested/page.html'))
+    await fs.symlink(sandbox, join(out, 'alias'), 'junction')
+    await expect(resolveOutputFile(out, 'alias/page.html', realRoot)).rejects.toThrow('output directory')
+    await expect(resolveOutputFile(out, '../outside.html', realRoot)).rejects.toThrow('output directory')
+  })
 })

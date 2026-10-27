@@ -80,6 +80,8 @@ export async function build(ssgOptions: Partial<ViteSSGOptions> = {}, viteConfig
     mode: config.mode,
   }))
 
+  const realOut = await fs.realpath(out)
+
   // load jsdom before building the SSR and so jsdom will be available
   if (mock) {
     // @ts-expect-error just ignore it
@@ -203,7 +205,7 @@ export async function build(ssgOptions: Partial<ViteSSGOptions> = {}, viteConfig
         htmlFileName,
       )
 
-      const destination = await resolveOutputFile(out, filename)
+      const destination = await resolveOutputFile(out, filename, realOut)
       await fs.mkdir(dirname(destination), { recursive: true })
       await fs.writeFile(destination, formatted, 'utf-8')
       config.logger.info(

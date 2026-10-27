@@ -136,11 +136,30 @@ describe('preload links', () => {
     expect(generated.hasAttribute('disabled')).toBe(false)
   })
 
-  it('does not deduplicate against a stylesheet disabled through its DOM property', () => {
-    const { document } = new JSDOM('<head><link rel="stylesheet" href="/style.css"></head>').window
-    document.querySelector('link')!.disabled = true
+  it.each(['Stylesheet', 'STYLESHEET', ' stylesheet '])('recognizes stylesheet relation %j', (rel) => {
+    const { document } = new JSDOM('<head><link href="/style.css"></head>').window
+    document.querySelector('link')!.setAttribute('rel', rel)
     renderPreloadLinks(document, new Set(['entry']), { entry: ['/style.css'] })
-    expect(document.querySelectorAll('link[rel="stylesheet"]').length).toBe(2)
+    expect(document.querySelectorAll('link').length).toBe(1)
+  })
+
+  it('preserves unconditional CSS alongside a mixed-case conditional stylesheet', () => {
+    const { document } = new JSDOM('<head><link rel="StyleSheet" href="/style.css" media="print"></head>').window
+    renderPreloadLinks(document, new Set(['entry']), { entry: ['/style.css'] })
+    expect(document.querySelectorAll('link').length).toBe(2)
+    expect(document.querySelectorAll('link')[1].hasAttribute('media')).toBe(false)
+  })
+
+  it('does not suppress unconditional CSS for alternate stylesheets', () => {
+    const { document } = new JSDOM('<head><link rel="alternate stylesheet" href="/style.css" title="Alternative"></head>').window
+    renderPreloadLinks(document, new Set(['entry']), { entry: ['/style.css'] })
+    expect(document.querySelectorAll('link').length).toBe(2)
+  })
+
+  it('recognizes mixed-case modulepreload relations', () => {
+    const { document } = new JSDOM('<head><link rel="ModulePreload" href="/app.js"></head>').window
+    renderPreloadLinks(document, new Set(['entry']), { entry: ['/app.js'] })
+    expect(document.querySelectorAll('link').length).toBe(1)
   })
 
   it.each(['', 'all', ' ALL '])('deduplicates enabled unconditional CSS with media=%j', (media) => {

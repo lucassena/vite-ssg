@@ -7,7 +7,7 @@ function isContained(root: string, path: string) {
   return remainder !== '..' && !remainder.startsWith(`..${sep}`) && !isAbsolute(remainder)
 }
 
-export async function resolveOutputFile(out: string, filename: string) {
+export async function resolveOutputFile(out: string, filename: string, canonicalRoot?: string) {
   const normalized = filename.replace(/\\/g, '/')
   const root = resolve(out)
   const destination = resolve(root, normalized)
@@ -33,8 +33,8 @@ export async function resolveOutputFile(out: string, filename: string) {
       ancestor = dirname(ancestor)
     }
   }
-  const realRoot = await fs.realpath(root)
-  const realAncestor = await fs.realpath(ancestor)
+  const realRoot = canonicalRoot ?? await fs.realpath(root)
+  const realAncestor = ancestor === root ? realRoot : await fs.realpath(ancestor)
   const existing = await fs.stat(realAncestor)
   if (!isContained(realRoot, realAncestor))
     throw invalidPath()
