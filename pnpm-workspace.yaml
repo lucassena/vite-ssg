@@ -17,7 +17,6 @@ catalog:
   '@vitejs/plugin-vue': ^6.0.4
   ansis: ^4.2.0
   beasties: ^0.5.5
-  bumpp: ^10.4.0
   cac: ^6.7.14
   eslint: ^9.39.2
   html-minifier-terser: ^7.2.0

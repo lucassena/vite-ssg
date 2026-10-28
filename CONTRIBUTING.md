@@ -27,13 +27,26 @@ the examples and generated HTML as well as the package's types and lint rules.
 
 ## Distribution and credits
 
-Source pull requests target `main`. After review and merge, prepare the prebuilt
-distribution separately, record its source commit in `sourceCommit`, and check
-the generated bundles and resolved runtime manifest. Include `README.md`,
-`FORK.md`, `CONTRIBUTING.md`, and `LICENSE` in the distribution so its guidance
-and local documentation links remain available. Consumers pin the reviewed
-distribution by immutable commit SHA. See [FORK.md](./FORK.md) for the maintenance
-policy and compatibility changes; do not edit generated bundles by hand.
+Source pull requests target `main`. Keep source/runtime versions identical and
+declare engines/peers in package.json; the packager must preserve that contract.
+Update versions in a reviewed PR; the release/bumpp tag-pushing command is removed.
+After review and merge, run the manual GitHub Release workflow on main. It gates
+packaging on the complete CI matrix and creates a draft prerelease with an
+uploaded prebuilt runtime .tgz, SHA256SUMS and release-manifest.json. Inspect the
+checks and artifacts, then publish with repository release immutability enabled.
+No npm or automatic preview publication is used.
+
+Use `pnpm run release:pack` on Linux/GNU tar from a clean checkout.
+Explicit dirty previews use `pnpm run release:pack --allow-dirty` and cannot
+be published. The CI installs the tarball outside the workspace with both tested
+Vite versions before a separate write-permission job can create the draft.
+Release packaging uses exact Node 24.22.1; provenance records Node/zlib/pnpm.
+Byte-identical reproduction is scoped to the same toolchain/environment.
+The runtime includes resolved catalogs, sourceCommit, README.md, FORK.md,
+CONTRIBUTING.md, LICENSE, bin and generated dist, without development dependencies
+or lifecycle scripts. Existing distribution-branch SHAs remain historical pins;
+new consumers should use the reviewed uploaded Release asset URL. See
+[FORK.md](./FORK.md) for the full procedure; do not edit generated bundles by hand.
 
 Preserve the upstream MIT license, original author credits, and attribution for
 cherry-picked contributions. The original
