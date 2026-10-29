@@ -132,10 +132,24 @@ It asserts the installed version before validation. The normal CI jobs continue
 to use the unchanged committed lockfile. No compatibility-specific package or
 new runtime dependency is required.
 
+## Return-based navigation guard
+
+Since `28.3.0-fork.5`, the hydration-state guard registered by `ViteSSG` returns
+instead of calling `next()`, so vue-router 5 no longer logs the deprecated
+callback warning. This cherry-picks commit
+`b62a20bf10f62c4bd8c425e519fa3221ea11143a` from upstream PR #467, preserving
+its author. The store example is converted the same way.
+
+https://github.com/antfu-collective/vite-ssg/pull/467
+
+The PR's later commits that drop vue-router 4 and raise the vue-router 5 peer
+are not included: return-based guards are also supported by vue-router 4, so
+the fork keeps its existing `^4.0.1 || ^5.0.0` peer range.
+
 ## GitHub Release procedure
 
 The source version and runtime package version must match. The next version is
-`28.3.0-fork.4`; previously distributed versions and SHAs are never overwritten.
+`28.3.0-fork.5`; previously distributed versions and SHAs are never overwritten.
 The source package.json is the single source of truth for engines and peers.
 The packager preserves those fields instead of substituting a second policy.
 It adds no runtime dependencies.
